@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <title>GPS Visualization</title>
+</head>
+<body>
+    <h1>GPS Object and Satellites Visualization</h1>
+    <div id="gps-chart"></div>
+
+    <script>
+        async function fetchGPSData() {
+            const response = await fetch('/gps_data');
+            const data = await response.json();
+            return data;
+        }
+
+        function plotData(data) {
+            const trace1 = {
+                x: [data.x],
+                y: [data.y],
+                mode: 'markers',
+                type: 'scatter',
+                name: 'Satellite'
+            };
+
+            const layout = {
+                title: 'Real-time GPS Data',
+                xaxis: { title: 'X Coordinate' },
+                yaxis: { title: 'Y Coordinate' }
+            };
+
+            Plotly.newPlot('gps-chart', [trace1], layout);
+        }
+
+        // Refresh the data every second
+        setInterval(async () => {
+            const gpsData = await fetchGPSData();
+            plotData(gpsData);
+        }, 1000);
+    </script>
+</body>
+</html>
