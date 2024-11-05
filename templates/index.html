@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Графік GPS</title>
+    
+    <!-- Зовнішні бібліотеки -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <!-- Стилі -->
+    <style>
+        /* Загальні стилі */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        /* Стилі графіка */
+        #graph {
+            width: 100%;
+            max-width: 1200px;
+            height: 600px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Стилі форми */
+        .form-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            max-width: 800px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            min-width: 200px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            border-color: #000000;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        /* Стилі кнопки */
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #000000;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background-color: #000000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Графік GPS</h1>
+
+    <!-- Контейнер для графіка -->
+    <div id="graph"></div>
+
+    <!-- Форма налаштувань -->
+    <div class="form-container">
+        <div class="form-group">
+            <label for="emulationZoneSize">Розмір зони емуляції (км):</label>
+            <input type="number" id="emulationZoneSize" value="200" min="1">
+        </div>
+        <div class="form-group">
+            <label for="messageFrequency">Частота передачі повідомлень (повід./сек):</label>
+            <input type="number" id="messageFrequency" value="1" min="0.1" step="0.1">
+        </div>
+        <div class="form-group">
+            <label for="satelliteSpeed">Швидкість супутника (км/г):</label>
+            <input type="number" id="satelliteSpeed" value="100" min="1">
+        </div>
+        <div class="form-group">
+            <label for="objectSpeed">Швидкість об'єкта (км/г):</label>
+            <input type="number" id="objectSpeed" value="10" min="1">
+        </div>
+    </div>
+
+    <button onclick="sendConfig()">Відправити параметри</button>
+
+    <!-- Скрипти -->
+    <script>
+        // Константи
+        const UPDATE_INTERVAL = 5000; // Інтервал оновлення даних (мс)
+        const API_BASE_URL = 'http://localhost:5000';
+        const CONFIG_URL = 'http://localhost:4001/config';
+
+        // Функція отримання даних з сервера
+        async function fetchData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/data`);
+                if (!response.ok) {
+                    throw new Error('Помилка отримання даних');
+                }
+                
+                const data = await response.json();
+                console.log('Отримані дані:', data);
+
+                if (data.status !== "error" && data.data && data.data.length > 0) {
+                    drawGraph(data);
+                } else {
+                    console.error("Помилка: дані не отримані або пусті");
+                }
+            } catch (error) {
+                console.error('Помилка:', error);
+            }
+        }
+
+        // Функція відправки конфігурації
+        async function sendConfig() {
+            const config = {
+                emulationZoneSize: document.getElementById('emulationZoneSize').value,
+                messageFrequency: document.getElementById('messageFrequency').value,
+                satelliteSpeed: document.getElementById('satelliteSpeed').value,
+                objectSpeed: document.getElementById('objectSpeed').value
+            };
+
+            try {
+                const response = await fetch(CONFIG_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Помилка відправки конфігурації');
+                }
+
+                const result = await response.json();
+                console.log('Конфігурація відправлена:', result);
+            } catch (error) {
+                console.error('Помилка відправки конфігурації:', error);
+            }
+        }
+
+        // Функція малювання графіка
+        function drawGraph(data) {
+            // Створення точок для супутників
+            const traces = data.data.map(point => ({
+                x: [point.x],
+                y: [point.y],
+                mode: 'markers+text',
+                text: [`Супутник ${point.id.slice(-4)}`],
+                textposition: "top center",
+                marker: { color: 'green', size: 15 }
+            }));
+
+            // Додавання розрахованої точки
+            if (data.calculated) {
+                traces.push({
+                    x: [data.calculated.x],
+                    y: [data.calculated.y],
+                    mode: 'markers+text',
+                    text: ['Вирахувана точка'],
+                    textposition: 'top center',
+                 marker: { color: 'blue', size: 20 }
+                });
+            }
+
+            // Налаштування графіка
+            const layout = {
+                title: 'Графік GPS',
+                xaxis: { title: 'X', range: [0, 130] },
+                yaxis: { title: 'Y', range: [0, 130] },
+                showlegend: true,
+                width: 1200,
+                height: 600
+            };
+
+            // Оновлення графіка
+            Plotly.react('graph', traces, layout);
+        }
+
+        // Запуск функції fetchData кожні 5 секунд
+        setInterval(fetchData, UPDATE_INTERVAL);
+    </script>
+</body>
+</html>
